@@ -1,38 +1,47 @@
-import json
 import spotipy
-import webbrowser
+from spotipy.oauth2 import SpotifyClientCredentials
+import pandas as pd
 
 
-username = 'fo9t5nsb0devz564jqr7di6yr'
-clientID = '6b0fcacdc9e24abaa5f8da3144748059'
-clientSecret = '82e1ec90361c474ab40349ea922b5958'
-redirect_uri = 'http://google.com/callback/'
+cid = ''
+secret = ''
 
-oauth_object = spotipy.SpotifyOAuth(clientID, clientSecret, redirect_uri)
-token_dict = oauth_object.get_access_token()
-token = token_dict['access_token']
-spotifyObject = spotipy.Spotify(auth=token)
-user_name = spotifyObject.current_user()
+client_credentials_manager = SpotifyClientCredentials(client_id=cid, client_secret=secret)
 
-# To print the response in readable format.
-print(json.dumps(user_name, sort_keys=True, indent=4))
+sp = spotipy.Spotify(client_credentials_manager = client_credentials_manager)
 
-while True:
-    print("Welcome to the project, " + user_name['display_name'])
-    print("0 - Exit the console")
-    print("1 - Search for a Song")
-    user_input = int(input("Enter Your Choice: "))
-    if user_input == 1:
-        search_song = input("Enter the song name: ")
-        results = spotifyObject.search(search_song, 1, 0, "track")
-        songs_dict = results['tracks']
-        song_items = songs_dict['items']
-        song = song_items[0]['external_urls']['spotify']
-        webbrowser.open(song)
-        print('Song has opened in your browser.')
-    elif user_input == 0:
-        print("Good Bye, Have a great day!")
-        break
-    else:
-        print("Please enter valid user-input.")
+def call_playlist(creator, playlist_id):
+    
+    #step1
+
+    playlist_features_list = ["artist","album","track_name",  "track_id","danceability","energy","key","loudness","mode", "speechiness","instrumentalness","liveness","valence","tempo", "duration_ms","time_signature"]
+    
+    playlist_df = pd.DataFrame(columns = playlist_features_list)
+    
+    #step2
+    
+    playlist = sp.user_playlist_tracks(creator, playlist_id)["items"]
+    for track in playlist:
+        # Create empty dict
+        playlist_features = {}
+        # Get metadata
+        playlist_features["artist"] = track["track"]["album"]["artists"][0]["name"]
+        playlist_features["album"] = track["track"]["album"]["name"]
+        playlist_features["track_name"] = track["track"]["name"]
+        playlist_features["track_id"] = track["track"]["id"]
         
+        # Get audio features
+        audio_features = sp.audio_features(playlist_features["track_id"])[0]
+        for feature in playlist_features_list[4:]:
+            playlist_features[feature] = audio_features[feature]
+        
+        # Concat the dfs
+        track_df = pd.DataFrame(playlist_features, index = [0])
+        playlist_df = pd.concat([playlist_df, track_df], ignore_index = True)
+
+    #Step 3
+        
+    return playlist_df
+
+
+print(call_playlist("LargeMrCan","3FKAovknz8y0QZb3I45Hfe"))
